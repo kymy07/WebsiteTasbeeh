@@ -1,0 +1,63 @@
+{
+  "rules": {
+    "meta": {
+      ".read": true,
+      "initialized": { ".write": "auth != null && !data.exists()" },
+      "$field": { ".write": "auth != null && (!root.child('meta/initialized').exists() || root.child('users/' + auth.uid + '/role').val() === 'boss')" }
+    },
+    "settings": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('users/' + auth.uid + '/role').val() === 'boss'"
+    },
+    "users": {
+      ".read": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'boss' || root.child('users/' + auth.uid + '/role').val() === 'worker')",
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'boss' || (auth.uid === $uid && data.exists() && newData.child('role').val() === data.child('role').val()) || (auth.uid === $uid && !data.exists() && (newData.child('role').val() === 'buyer' || (newData.child('role').val() === 'boss' && !root.child('meta/initialized').exists()))))",
+        ".validate": "newData.hasChildren(['id', 'name', 'username', 'role']) && newData.child('id').val() === $uid && (newData.child('role').val() === 'boss' || newData.child('role').val() === 'worker' || newData.child('role').val() === 'buyer')"
+      }
+    },
+    "pools": {
+      ".read": "auth != null",
+      ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'boss' || root.child('users/' + auth.uid + '/role').val() === 'worker')"
+    },
+    "water": {
+      ".read": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'boss' || root.child('users/' + auth.uid + '/role').val() === 'worker')",
+      ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'boss' || root.child('users/' + auth.uid + '/role').val() === 'worker')"
+    },
+    "feeding": {
+      ".read": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'boss' || root.child('users/' + auth.uid + '/role').val() === 'worker')",
+      ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'boss' || root.child('users/' + auth.uid + '/role').val() === 'worker')"
+    },
+    "stockLogs": {
+      ".read": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'boss' || root.child('users/' + auth.uid + '/role').val() === 'worker')",
+      ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'boss' || root.child('users/' + auth.uid + '/role').val() === 'worker')"
+    },
+    "tasks": {
+      ".read": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'boss' || root.child('users/' + auth.uid + '/role').val() === 'worker')",
+      ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'boss' || root.child('users/' + auth.uid + '/role').val() === 'worker')"
+    },
+    "orders": {
+      ".indexOn": ["buyerId"],
+      ".read": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'boss' || root.child('users/' + auth.uid + '/role').val() === 'worker' || (query.orderByChild === 'buyerId' && query.equalTo === auth.uid))",
+      "$id": {
+        ".read": "auth != null && data.child('buyerId').val() === auth.uid",
+        ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'boss' || root.child('users/' + auth.uid + '/role').val() === 'worker' || (!data.exists() && newData.child('buyerId').val() === auth.uid && newData.child('status').val() === 'pending') || (data.child('buyerId').val() === auth.uid && data.child('status').val() === 'pending' && newData.child('status').val() === 'cancelled'))"
+      }
+    },
+    "notifications": {
+      ".indexOn": ["to"],
+      ".read": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'boss' || root.child('users/' + auth.uid + '/role').val() === 'worker' || (query.orderByChild === 'to' && query.equalTo === auth.uid))",
+      "$id": {
+        ".read": "auth != null && data.child('to').val() === auth.uid",
+        ".write": "auth != null && (!data.exists() || data.child('to').val() === auth.uid || root.child('users/' + auth.uid + '/role').val() === 'boss' || root.child('users/' + auth.uid + '/role').val() === 'worker')"
+      }
+    },
+    "activity": {
+      ".read": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'boss' || root.child('users/' + auth.uid + '/role').val() === 'worker')",
+      "$id": {
+        ".write": "auth != null && (!data.exists() || root.child('users/' + auth.uid + '/role').val() === 'boss' || root.child('users/' + auth.uid + '/role').val() === 'worker')"
+      }
+    }
+  }
+}

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <rect width="256" height="256" rx="40" fill="#0e3b20"/>
+  <path d="M58 132c22-34 74-44 112 0-38 44-90 34-112 0z" fill="none" stroke="#e5cf98" stroke-width="10" stroke-linejoin="round"/>
+  <path d="M170 132l30-24v48z" fill="none" stroke="#e5cf98" stroke-width="10" stroke-linejoin="round"/>
+  <circle cx="92" cy="126" r="7" fill="#e5cf98"/>
+  <text x="128" y="212" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="40" font-weight="700" letter-spacing="6" fill="#ffffff">XXX</text>
+  <text x="128" y="72" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="17" font-weight="600" letter-spacing="5" fill="#9fc3ad">FISH FARM</text>
+</svg>
