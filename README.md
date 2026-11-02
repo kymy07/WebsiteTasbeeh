@@ -179,9 +179,9 @@ Live at **https://fishfarmxdemo.netlify.app**, hosted on **Netlify** as a static
 If the Netlify site is linked to this repo, every push to `main` redeploys it. Otherwise,
 drag the project folder into the Netlify dashboard to deploy a new version.
 
-> The current live demo runs in **local mode** until `apiKey` / `appId` are added to
-> `js/firebase-config.js`. Each visitor's data then stays in their own browser. After
-> connecting Firebase, all devices share one realtime database.
+> The live site is connected to Firebase project `websitebookingfishtasbeeh`. Before first use,
+> enable Email/Password in Authentication and publish `database.rules.json`, or setup and
+> login will fail. All devices then share one realtime database.
 
 ---
 
