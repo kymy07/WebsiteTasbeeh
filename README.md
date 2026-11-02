@@ -1,6 +1,6 @@
 # XXX Fish Farm — Fish Farm Management System
 
-🌐 **Live:** https://fishfarmxdemo.netlify.app
+🌐 **Live:** https://fishfarmdemo.vercel.app
 
 A login-gated web portal for running a **fish farm (ponds / floating cages)** end to end:
 **stocking → water quality → feeding → growth & FCR → sales orders → reports**. It has
@@ -10,7 +10,7 @@ fully bilingual (**Bahasa Melayu / English**). Business data and login live in *
 operations, and the Boss sees and manages everything.
 
 > **The whole app is a static site: plain HTML/CSS/JS with no build step and no server code.**
-> It is hosted on Netlify; the only backend is Firebase, called directly from the browser.
+> It is hosted on Vercel; the only backend is Firebase, called directly from the browser.
 
 ---
 
@@ -39,7 +39,7 @@ operations, and the Boss sees and manages everything.
 | **Auth** | Firebase Authentication (email/password; usernames map to `username@fishfarm.app`) |
 | **SDK** | Firebase JS SDK 10.12 (compat build, loaded from gstatic CDN) |
 | **Notifications** | CallMeBot WhatsApp API, Telegram Bot API, browser Notification API |
-| **Hosting** | Netlify (static) |
+| **Hosting** | Vercel (static, auto-deploy from GitHub) |
 
 ---
 
@@ -169,19 +169,30 @@ the Pekerja tab, and so on.
 
 ## Deployment
 
-Live at **https://fishfarmxdemo.netlify.app**, hosted on **Netlify** as a static site.
+Live at **https://fishfarmdemo.vercel.app**, hosted on **Vercel** as a static site and
+imported from this GitHub repo.
 
-| Netlify setting | Value |
+| Vercel setting | Value |
 |---|---|
+| Framework preset | Other |
 | Build command | *(none)* |
-| Publish directory | `/` (repo root) |
+| Output directory | `/` (repo root) |
 
-If the Netlify site is linked to this repo, every push to `main` redeploys it. Otherwise,
-drag the project folder into the Netlify dashboard to deploy a new version.
+```
+git push origin main
+   → Vercel detects the push
+   → deploys the static files (no build step)
+   → new version live in under a minute
+```
 
-> The live site is connected to Firebase project `websitebookingfishtasbeeh`. Before first use,
-> enable Email/Password in Authentication and publish `database.rules.json`, or setup and
-> login will fail. All devices then share one realtime database.
+Watch deploys in the Vercel dashboard (**Deployments** tab).
+
+**Firebase (already done once, documented for reference):**
+1. Web app registered; its `apiKey` / `appId` are in `js/firebase-config.js`.
+2. **Authentication → Sign-in method → Email/Password**: enabled.
+3. **Realtime Database → Rules**: contents of `database.rules.json`, published.
+
+After changing `database.rules.json`, publish it again in the console. Git does not deploy rules.
 
 ---
 
