@@ -14,11 +14,20 @@ const SHARED_USER = 'admin', SHARED_PASSWORD = '1234', SHARED_AUTH_PASSWORD = 'f
 const isSharedAccount = username => SHARED_ROLES.some(r => username === SHARED_USER + '.' + r);
 const emailOf = username => String(username).trim().toLowerCase().replace(/[^a-z0-9._-]/g, '') + EMAIL_DOMAIN;
 
-const DEFAULT_SETTINGS = { businessName: 'XXX Fish Farm', location: '', bossPhone: '', callmebotKey: '', telegramToken: '', telegramChatId: '', lowStock: 200, layoutTop: 5, layoutStem: 4,
+const DEFAULT_SETTINGS = { businessName: 'XXX Fish Farm', location: '', bossPhone: '', callmebotKey: '', telegramToken: '', telegramChatId: '', lowStock: 200, layoutTop: 5, layoutStem: 4, planNotes: '',
   regNo: '', address: '', email: '', officePhone: '',
   phMin: 6.5, phMax: 8.5, tempMin: 24, tempMax: 32, doMin: 5, nh3Max: 0.5, fcrGood: 1.5, fcrFair: 2 };
 const NUMERIC_SETTINGS = ['lowStock', 'layoutTop', 'layoutStem', 'phMin', 'phMax', 'tempMin', 'tempMax', 'doMin', 'nh3Max', 'fcrGood', 'fcrFair'];
 const emptyData = () => ({ ...Object.fromEntries(COLLECTIONS.map(k => [k, []])), settings: { ...DEFAULT_SETTINGS } });
+
+// The farm's 21 cages as recorded on 27/10/2026: [cage no, fish count, average size in grams]
+const PLAN_RECORD_DATE = '2026-10-27';
+const PLAN_CAGE_DATA = [[1, 1300, 25], [2, 1300, 25], [3, 1300, 25], [4, 0, 0], [5, 0, 0], [6, 0, 0], [7, 0, 0], [8, 0, 0], [9, 0, 0], [10, 1300, 210], [11, 1300, 200],
+  [12, 1300, 190], [13, 1300, 150], [14, 313, 250], [15, 1139, 180], [16, 1300, 200], [17, 1300, 180], [18, 1300, 25], [19, 1300, 25], [20, 600, 25], [21, 1300, 25]];
+const planCages = () => PLAN_CAGE_DATA.map(([no, count, g]) => ({
+  id: 'cage' + String(no).padStart(2, '0'), cageNo: no, slot: '', name: 'Sangkar ' + no, species: '-', count, capacity: 1500, price: 0, unit: 'fish', avgWeight: g / 1000,
+  status: count ? 'active' : 'empty', forSale: false, stockedDate: '', harvestDate: '', notes: '', ageMin: '', ageMax: '', ageUnit: 'month', stockCount: 0, stockWeight: 0, recordDate: PLAN_RECORD_DATE,
+}));
 
 // Sample operational data (no user accounts — those live in Firebase Auth)
 function seedData(bossId) {
@@ -62,7 +71,7 @@ function seedData(bossId) {
     { id: uid('t'), title: 'Tukar air Kolam A2 (50%)', poolId: 'p2', assignee: bossId, due: todayStr(), priority: 'high', done: false, createdAt: daysAgo(0) },
     { id: uid('t'), title: 'Bersihkan penapis Kolam B1', poolId: 'p3', assignee: bossId, due: todayStr(), priority: 'normal', done: false, createdAt: daysAgo(0) },
   ];
-  return { pools, water, feeding, stockLogs, orders, tasks, activity: [{ id: uid('a'), text: 'Data demo dimuatkan', date: new Date().toISOString() }] };
+  return { pools: pools.concat(planCages()), water, feeding, stockLogs, orders, tasks, activity: [{ id: uid('a'), text: 'Data demo dimuatkan', date: new Date().toISOString() }] };
 }
 
 const Store = {
@@ -153,7 +162,7 @@ const Store = {
       this.snap.settings = JSON.stringify(this.data.settings);
     } else {
       const prev = this.snap[key] || {};
-      const arr = Object.values(val || {});
+      const arr = Object.entries(val || {}).map(([id, r]) => ({ ...r, id: r.id || id }));
       if (key === 'activity' || key === 'notifications') arr.sort((a, b) => b.date.localeCompare(a.date));
       this.data[key] = arr;
       this.snap[key] = Object.fromEntries(arr.map(r => [r.id, JSON.stringify(r)]));

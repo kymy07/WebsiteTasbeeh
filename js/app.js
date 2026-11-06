@@ -55,6 +55,7 @@ const ICONS = {
   lock: '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
   cloud: '<path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>',
   truck: '<path d="M1 3h15v13H1z"/><path d="M16 8h4l3 3v5h-7z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>',
+  calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
   refresh: '<path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0 0 20.5 15"/>',
 };
 const icon = (n, size = 20) => `<svg class="icon" width="${size}" height="${size}" viewBox="0 0 24 24">${ICONS[n] || ''}</svg>`;
@@ -303,7 +304,6 @@ function renderShell(u) {
   const notifs = myNotifs();
   const unread = notifs.filter(n => !n.read).length;
   const viewTitle = t(state.view);
-  const group = (navFor(u.role).find(g => g.items.includes(state.view)) || {}).label || '';
   const s = D().settings;
   return `
   <div class="shell">
@@ -325,7 +325,7 @@ function renderShell(u) {
     <main class="main">
       <header class="topbar">
         <button class="icon-btn menu-btn" data-act="openSidebar">${icon('menu')}</button>
-        <div><div class="crumb">${esc(group)} / <b>${viewTitle}</b></div><h1>${viewTitle}</h1></div>
+        <h1>${viewTitle}</h1>
         <div class="spacer"></div>
         <div class="sub" style="text-align:right">${new Date().toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</div>
         ${langSwitch()}
@@ -350,13 +350,87 @@ function renderShell(u) {
 // ---------- views ----------
 const VIEWS = {};
 
+// ----- farm plan: the 21 cages in their physical layout -----
+const PLAN_LAYOUT = {
+  top: [[0, 19, 0], [18, 21, 20], [0, 17, 0]],
+  left: [[7, 8], [5, 6], [4, 3], [1, 2]],
+  right: [[9, 10], [11, 12], [13, 14], [15, 16]],
+};
+
+function farmPlan() {
+  const d = D();
+  const cages = d.pools.filter(p => p.cageNo);
+  const byNo = Object.fromEntries(cages.map(p => [p.cageNo, p]));
+  const grams = p => Math.round((+p.avgWeight || 0) * 1000);
+  const cell = no => {
+    if (!no) return '<span></span>';
+    const p = byNo[no], n = p ? p.count : 0, g = p && n ? grams(p) : 0;
+    return `<button class="cage-cell ${n ? cageState(p) : 'is-empty'}" data-act="planCage" data-no="${no}" title="${t('cagesCol')} ${no}">
+      <span class="cc-no">${no}</span>
+      ${n ? `<span class="cc-row"><span class="cc-l">${t('planCount')}</span><b>${fmtN(n)} <small>${t('ekor')}</small></b></span>
+      <span class="cc-row"><span class="cc-l">${t('planSize')}</span><b>${g} <small>g</small></b></span>` : `<span class="cc-empty">${t('empty')}</span>`}
+    </button>`;
+  };
+  const block = (rows, cls) => `<div class="${cls}">${rows.flat().map(cell).join('')}</div>`;
+
+  const filled = cages.filter(p => p.count > 0).sort((a, b) => a.cageNo - b.cageNo);
+  const totalFish = filled.reduce((s, p) => s + p.count, 0);
+  const totalKg = filled.reduce((s, p) => s + p.count * (+p.avgWeight || 0), 0);
+  const sizes = {};
+  filled.forEach(p => {
+    const a = sizes[grams(p)] = sizes[grams(p)] || { cages: 0, fish: 0, kg: 0 };
+    a.cages++; a.fish += p.count; a.kg += p.count * (+p.avgWeight || 0);
+  });
+  const sizeRows = Object.keys(sizes).map(Number).sort((a, b) => a - b);
+  const maxFish = Math.max(1, ...sizeRows.map(g => sizes[g].fish));
+  const kg = v => v.toLocaleString('en-MY', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+  const ids = new Set(cages.map(p => p.id));
+  const dates = cages.map(p => p.recordDate).filter(Boolean).concat(d.stockLogs.filter(s => ids.has(s.poolId) || ids.has(s.toPoolId)).map(s => s.date.slice(0, 10)));
+  const latest = dates.sort().pop();
+
+  return `
+    <div class="plan-head">
+      <div class="plan-title">
+        <h2>${esc(Store.bizName())}</h2>
+        <div class="plan-sub">${t('planTitle')} · 21 ${t('cageWord')} · ${t('planTag')}</div>
+      </div>
+      <div class="plan-date"><span>${t('recordDate')}</span><b>${latest ? fmtDate(latest) : '-'}</b></div>
+    </div>
+    ${!cages.length && isBoss() ? `<div class="alert info plan-load"><span>${t('planLoadText')}</span><button class="btn sm" data-act="loadPlan">${t('planLoad')}</button></div>` : ''}
+    <div class="plan-grid">
+      <div class="card plan-map">
+        ${block(PLAN_LAYOUT.top, 'plan-top')}
+        <div class="plan-blocks">${block(PLAN_LAYOUT.left, 'plan-block')}${block(PLAN_LAYOUT.right, 'plan-block')}</div>
+        <p class="hint" style="margin:12px 0 0;text-align:center">${t('planHint')}</p>
+      </div>
+      <div class="plan-side">
+        <div class="card plan-summary">
+          <div class="sum-main"><span>${t('totalAll')}</span><b>${fmtN(totalFish)} <small>${t('ekor')}</small></b></div>
+          <div class="sum-row"><span>${t('estWeight')}</span><b>${kg(totalKg)} kg</b></div>
+          <div class="sum-row"><span>${t('filledCages')}</span><b>${filled.length} / 21</b></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h3>${t('sizeBreakdown')}</h3></div>
+          ${sizeRows.length ? `<div class="table-wrap"><table>
+            <thead><tr><th>${t('sizeG')}</th><th class="right">${t('cagesCol')}</th><th class="right">${t('fishCol')}</th><th class="right">${t('weightCol')}</th></tr></thead>
+            <tbody>${sizeRows.map(g => `<tr>
+              <td><b>${g} g</b><span class="size-bar"><span style="width:${sizes[g].fish / maxFish * 100}%"></span></span></td>
+              <td class="right">${sizes[g].cages}</td><td class="right">${fmtN(sizes[g].fish)}</td><td class="right">${kg(sizes[g].kg)}</td></tr>`).join('')}
+              <tr class="total-row"><td>${t('total')}</td><td class="right">${filled.length}</td><td class="right">${fmtN(totalFish)}</td><td class="right">${kg(totalKg)}</td></tr>
+            </tbody></table></div>` : `<div class="empty">-</div>`}
+        </div>
+        <div class="card">
+          <div class="card-head"><h3>${t('notes')}</h3></div>
+          <textarea class="input" id="plan-notes" rows="4" ${isBoss() ? '' : 'readonly'}>${esc(d.settings.planNotes)}</textarea>
+        </div>
+      </div>
+    </div>`;
+}
+
 VIEWS.dashboard = () => {
   const d = D();
   const active = d.pools.filter(p => p.status === 'active');
-  const totalFish = d.pools.reduce((s, p) => s + p.count, 0);
-  const pending = d.orders.filter(o => o.status === 'pending').length;
-  const ym = new Date().toISOString().slice(0, 7);
-  const monthRev = d.orders.filter(o => isSale(o) && o.date.slice(0, 7) === ym).reduce((s, o) => s + o.total, 0);
   const myTasks = d.tasks.filter(x => !x.done && (isBoss() || x.assignee === me().id));
 
   // alerts
@@ -377,28 +451,19 @@ VIEWS.dashboard = () => {
   });
 
   return `
-    <div class="stats">
-      <div class="card stat"><div class="ic green">${icon('pools', 22)}</div><div class="label">${t('totalPools')}</div><div class="value">${d.pools.length}</div><div class="trend">${active.length} ${t('activePools')}</div></div>
-      <div class="card stat"><div class="ic blue">${icon('water', 22)}</div><div class="label">${t('totalFish')}</div><div class="value">${fmtN(totalFish)}</div><div class="trend">${t('ekor')}</div></div>
-      <div class="card stat"><div class="ic gold">${icon('orders', 22)}</div><div class="label">${t('pendingOrders')}</div><div class="value">${pending}</div><div class="trend"><a href="#" data-act="nav" data-v="orders">${t('viewAll')} →</a></div></div>
-      ${isBoss()
-        ? `<div class="card stat"><div class="ic green">${icon('money', 22)}</div><div class="label">${t('revenue')}</div><div class="value">${rm(monthRev)}</div><div class="trend">${new Date().toLocaleDateString(locale(), { month: 'long', year: 'numeric' })}</div></div>`
-        : `<div class="card stat"><div class="ic red">${icon('tasks', 22)}</div><div class="label">${t('myTasksToday')}</div><div class="value">${myTasks.length}</div><div class="trend">${t('pending')}</div></div>`}
-    </div>
-    <div class="row">
-      <div class="card"><div class="card-head"><h3>${t('fishPerPool')}</h3><a href="#" data-act="nav" data-v="pools">${t('viewAll')} →</a></div>
-        ${barChart(d.pools.map(p => ({ label: p.name, value: p.count })))}</div>
+    ${farmPlan()}
+    <div class="row even">
       <div class="card"><div class="card-head"><h3>${t('alerts')}</h3><span class="badge ${alerts.length ? 'red' : ''}">${alerts.length}</span></div>
         ${alerts.length ? `<div class="list">${alerts.map(a => `<div class="list-item"><span class="badge ${a.type}">${icon('alert', 14)}</span><div class="grow t" style="font-weight:500">${esc(a.text)}</div></div>`).join('')}</div>` : `<div class="alert ok">${t('noAlerts')}</div>`}
       </div>
-    </div>
-    <div class="row">
-      ${isBoss() ? `<div class="card"><div class="card-head"><h3>${t('sales7')}</h3></div>${barChart(sales7, true)}</div>` : `<div class="card"><div class="card-head"><h3>${t('myTasksToday')}</h3><a href="#" data-act="nav" data-v="tasks">${t('viewAll')} →</a></div>${taskList(myTasks.slice(0, 6))}</div>`}
       <div class="card"><div class="card-head"><h3>${t('recentActivity')}</h3></div>
         <div class="list">${d.activity.slice(0, 7).map(a => `<div class="list-item"><div class="grow"><div class="t" style="font-weight:500">${esc(a.text)}</div><div class="s">${fmtDT(a.date)}</div></div></div>`).join('') || `<div class="empty">-</div>`}</div>
       </div>
     </div>
-    ${isBoss() ? `<div class="card"><div class="card-head"><h3>${t('tasks')} — ${t('pending')}</h3><button class="btn sm" data-act="addTask">${icon('plus', 16)} ${t('addTask')}</button></div>${taskList(myTasks.slice(0, 6))}</div>` : ''}
+    <div class="row even">
+      ${isBoss() ? `<div class="card"><div class="card-head"><h3>${t('sales7')}</h3></div>${barChart(sales7, true)}</div>` : ''}
+      <div class="card"><div class="card-head"><h3>${t('tasks')} — ${t('pending')}</h3>${isBoss() ? `<button class="btn sm" data-act="addTask">${icon('plus', 16)} ${t('addTask')}</button>` : `<a href="#" data-act="nav" data-v="tasks">${t('viewAll')} →</a>`}</div>${taskList(myTasks.slice(0, 6))}</div>
+    </div>
   `;
 };
 
@@ -491,11 +556,11 @@ function poolCard(p) {
       </div><div class="hint">${t('lastWater')}: ${fmtDT(w.date)}</div>` : `<div class="hint">${t('lastWater')}: ${t('notRecorded')}</div>`}
       ${p.notes ? `<div class="hint">${t('notes')}: ${esc(p.notes)}</div>` : ''}
       <div class="pool-actions">
-        <button class="btn sm secondary" data-act="addStock" data-pool="${p.id}" title="${t('recordStock')}">${icon('stock', 15)} ${t('stock').split(' ')[0]}</button>
-        <button class="btn sm secondary" data-act="addWater" data-pool="${p.id}" title="${t('recordWater')}">${icon('water', 15)}</button>
-        <button class="btn sm secondary" data-act="addFeeding" data-pool="${p.id}" title="${t('recordFeeding')}">${icon('feeding', 15)}</button>
-        <button class="btn sm secondary" data-act="sampleWeight" data-pool="${p.id}" title="${t('sampleWeight')}">${icon('scale', 15)}</button>
-        ${isBoss() ? `<button class="btn sm secondary" data-act="editPool" data-id="${p.id}" title="${t('edit')}">${icon('edit', 15)}</button>
+        <button class="btn sm secondary" data-act="addStock" data-pool="${p.id}" title="${t('recordStock')}">${icon('stock', 15)} ${t('actStock')}</button>
+        <button class="btn sm secondary" data-act="addWater" data-pool="${p.id}" title="${t('recordWater')}">${icon('water', 15)} ${t('actWater')}</button>
+        <button class="btn sm secondary" data-act="addFeeding" data-pool="${p.id}" title="${t('recordFeeding')}">${icon('feeding', 15)} ${t('actFeed')}</button>
+        <button class="btn sm secondary" data-act="sampleWeight" data-pool="${p.id}" title="${t('sampleWeight')}">${icon('scale', 15)} ${t('actWeight')}</button>
+        ${isBoss() ? `<button class="btn sm secondary" data-act="editPool" data-id="${p.id}" title="${t('edit')}">${icon('edit', 15)} ${t('edit')}</button>
         <button class="btn sm danger" data-act="delPool" data-id="${p.id}" title="${t('delete')}">${icon('trash', 15)}</button>` : ''}
       </div>
     </div>
@@ -962,6 +1027,7 @@ function poolForm(p = {}) {
   const sel = (v, x) => v === x ? 'selected' : '';
   return `
     <input type="hidden" name="slot" value="${esc(p.slot || '')}">
+    <input type="hidden" name="cageNo" value="${esc(p.cageNo || '')}">
     <div class="grid-2">
       <div class="field"><label>${t('poolName')}</label><input class="input" name="name" value="${esc(p.name)}" required></div>
       <div class="field"><label>${t('species')}</label><input class="input" name="species" value="${esc(p.species)}" list="species-list" required>
@@ -993,7 +1059,7 @@ function savePool(f, existing) {
   const p = existing || { id: uid('p') };
   Object.assign(p, {
     name: f.name.trim(), species: f.species.trim(), count: +f.count, capacity: +f.capacity, price: +f.price, unit: f.unit,
-    slot: f.slot || '', avgWeight: +f.avgWeight, stockCount: +f.stockCount || 0, stockWeight: +f.stockWeight || 0,
+    slot: f.slot || '', cageNo: +f.cageNo || '', recordDate: todayStr(), avgWeight: +f.avgWeight, stockCount: +f.stockCount || 0, stockWeight: +f.stockWeight || 0,
     ageMin: f.ageMin === '' ? '' : +f.ageMin, ageMax: f.ageMax === '' ? '' : +f.ageMax, ageUnit: f.ageUnit, status: f.status, forSale: f.forSale === '1', stockedDate: f.stockedDate, harvestDate: f.harvestDate, notes: f.notes,
   });
   if (!existing) D().pools.push(p);
@@ -1192,6 +1258,18 @@ const ACTIONS = {
   closeModalBack: (el, e) => { if (e.target === el) closeModal(); },
 
   addPool: el => openModal({ title: t('addPool'), wide: true, body: poolForm({ slot: el.dataset.slot || '' }), onSubmit: f => { savePool(f); render(); } }),
+  loadPlan: el => {
+    el.disabled = true;
+    const have = new Set(D().pools.map(p => p.cageNo));
+    D().pools.push(...planCages().filter(p => !have.has(p.cageNo)));
+    Store.log(`${me().name}: ${t('planLoad')}`);
+    Store.save().then(() => { toast(t('saved')); render(); });
+  },
+  planCage: el => {
+    const no = +el.dataset.no, p = D().pools.find(x => x.cageNo === no);
+    if (p) return openModal({ title: esc(p.name), body: `<div class="pools" style="grid-template-columns:1fr">${poolCard(p)}</div>`, hideFoot: true });
+    if (isBoss()) openModal({ title: t('addPool'), wide: true, body: poolForm({ cageNo: no, name: 'Sangkar ' + no }), onSubmit: f => { savePool(f); render(); } });
+  },
   toggleArrange: () => { state.arrange = !state.arrange; state.moveFrom = null; render(); },
   cagePick: el => { if (!isBoss()) return; state.arrange = true; state.moveFrom = state.moveFrom === el.dataset.id ? null : el.dataset.id; render(); },
   cageClick: el => {
@@ -1240,6 +1318,7 @@ const ACTIONS = {
         <div class="hint">${t('biomass')}: ${fmtN(Math.round(p.count * (p.avgWeight || 0)))} kg · ${fcrBadge(fcrOf(p))}</div>`,
       onSubmit: f => {
         p.avgWeight = +f.avgWeight;
+        p.recordDate = todayStr();
         Store.log(`${me().name}: ${t('sampleWeight')} ${p.name} = ${p.avgWeight} kg`);
         Store.save(); toast(t('saved')); render();
       },
@@ -1382,6 +1461,7 @@ document.addEventListener('input', e => {
 document.addEventListener('change', e => {
   const k = e.target.dataset.change;
   if (k) { state[k] = e.target.value; render(); }
+  if (e.target.id === 'plan-notes' && isBoss()) { D().settings.planNotes = e.target.value; Store.save(); toast(t('saved')); }
   const sk = e.target.dataset.setting;
   if (sk) { D().settings[sk] = Math.max(0, Math.min(15, +e.target.value || 0)); Store.save(); render(); }
   if (e.target.id === 'stock-type') $('#to-pool').style.display = e.target.value === 'transfer' ? '' : 'none';
