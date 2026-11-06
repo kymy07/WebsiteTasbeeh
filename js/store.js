@@ -8,6 +8,10 @@ const EMAIL_DOMAIN = '@fishfarm.app';
 const uid = (p = '') => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 const daysAgo = (n, h = 9) => { const d = new Date(); d.setDate(d.getDate() - n); d.setHours(h, 0, 0, 0); return d.toISOString(); };
 const todayStr = () => new Date().toISOString().slice(0, 10);
+// Shared demo login: admin / 1234 on any portal tab. Each role needs its own Firebase account,
+// and Firebase requires 6+ character passwords, so it maps to internal credentials.
+const SHARED_USER = 'admin', SHARED_PASSWORD = '1234', SHARED_AUTH_PASSWORD = 'fishfarm-admin-1234', SHARED_ROLES = ['boss', 'worker', 'buyer'];
+const isSharedAccount = username => SHARED_ROLES.some(r => username === SHARED_USER + '.' + r);
 const emailOf = username => String(username).trim().toLowerCase().replace(/[^a-z0-9._-]/g, '') + EMAIL_DOMAIN;
 
 const DEFAULT_SETTINGS = { businessName: 'XXX Fish Farm', location: '', bossPhone: '', callmebotKey: '', telegramToken: '', telegramChatId: '', lowStock: 200, layoutTop: 5, layoutStem: 4,
@@ -187,6 +191,9 @@ const Store = {
 
   login(username, password, role) {
     this.expectRole = role;
+    if (String(username).trim().toLowerCase() === SHARED_USER && password === SHARED_PASSWORD) {
+      return this.auth.signInWithEmailAndPassword(emailOf(SHARED_USER + '.' + role), SHARED_AUTH_PASSWORD);
+    }
     return this.auth.signInWithEmailAndPassword(emailOf(username), password);
   },
   logout() { return this.auth.signOut(); },
@@ -198,17 +205,41 @@ const Store = {
       .catch(e => { this.pending = null; throw e; });
   },
 
-  // Boss creates an account for someone else without being signed out (secondary app instance)
-  async createAccount(profile, password) {
+  // Secondary app instance, so the Boss can create accounts without being signed out
+  async secondaryApp() {
     const fb = this.fb;
     const sec = fb.apps.find(a => a.name === 'secondary') || fb.initializeApp(FIREBASE_CONFIG, 'secondary');
     await sec.auth().setPersistence(fb.auth.Auth.Persistence.NONE);
+    return sec;
+  },
+
+  async createAccount(profile, password) {
+    const sec = await this.secondaryApp();
     const cred = await sec.auth().createUserWithEmailAndPassword(emailOf(profile.username), password);
     await sec.auth().signOut();
     const u = { ...profile, username: profile.username.trim().toLowerCase(), id: cred.user.uid };
     this.data.users.push(u);
     await this.save();
     return u;
+  },
+
+  sharedAccountsReady() { return SHARED_ROLES.every(r => this.data.users.some(u => u.username === SHARED_USER + '.' + r)); },
+
+  // Boss only: creates (or re-links) the internal accounts behind admin / 1234
+  async enableSharedAccounts() {
+    const sec = await this.secondaryApp();
+    for (const role of SHARED_ROLES) {
+      const username = SHARED_USER + '.' + role;
+      if (this.data.users.some(u => u.username === username)) continue;
+      const email = emailOf(username);
+      const cred = await sec.auth().createUserWithEmailAndPassword(email, SHARED_AUTH_PASSWORD).catch(e => {
+        if (e.code === 'auth/email-already-in-use') return sec.auth().signInWithEmailAndPassword(email, SHARED_AUTH_PASSWORD);
+        throw e;
+      });
+      await sec.auth().signOut();
+      this.data.users.push({ id: cred.user.uid, name: 'Admin', username, phone: '', role });
+    }
+    return this.save();
   },
 
   // Public business name (readable before login, so it lives in /meta)

@@ -808,7 +808,7 @@ function salesBreakdown(orders) {
 
 // ----- users -----
 VIEWS.users = () => `
-  <div class="toolbar"><div class="spacer"></div><button class="btn" data-act="addUser">${icon('plus', 18)} ${t('addUser')}</button></div>
+  <div class="toolbar"><div class="spacer"></div>${Store.sharedAccountsReady() ? '' : `<button class="btn secondary" data-act="enableShared" title="${t('sharedHint')}">${icon('lock', 18)} ${t('enableShared')}</button>`}<button class="btn" data-act="addUser">${icon('plus', 18)} ${t('addUser')}</button></div>
   <div class="card"><div class="table-wrap"><table>
     <thead><tr><th>${t('fullName')}</th><th>${t('username')}</th><th>${t('role')}</th><th>${t('phone')}</th><th></th></tr></thead>
     <tbody>${D().users.map(u => `<tr>
@@ -1310,6 +1310,12 @@ const ACTIONS = {
     Store.log(`${me().name} membatalkan ${o.no}`); Store.save(); render();
   },
 
+  enableShared: el => {
+    el.disabled = true;
+    Store.enableSharedAccounts()
+      .then(() => { toast(t('sharedEnabled')); render(); })
+      .catch(e => { el.disabled = false; toast(authErr(e), 'err'); });
+  },
   addUser: () => openModal({
     title: t('addUser'), body: userForm({ role: 'worker' }),
     onSubmit: (f, form) => {
@@ -1450,6 +1456,7 @@ document.addEventListener('submit', e => {
     Store.save(); toast(t('saved')); render();
   }
   if (form.id === 'password-form') {
+    if (isSharedAccount(me().username)) return toast(t('sharedNoChange'), 'err');
     if (f.next !== f.confirm) return toast(t('passwordMismatch'), 'err');
     busy(true);
     Store.changePassword(f.current, f.next)
