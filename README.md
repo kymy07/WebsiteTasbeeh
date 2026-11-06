@@ -180,12 +180,24 @@ imported from this GitHub repo.
 
 ```
 git push origin main
-   → Vercel detects the push
-   → deploys the static files (no build step)
-   → new version live in under a minute
+   → GitHub Actions (.github/workflows/deploy.yml)
+   → Vercel CLI deploys the static files to production (no build step)
+   → health check on the live site
 ```
 
-Watch deploys in the Vercel dashboard (**Deployments** tab).
+Watch deploys in the repo's **Actions** tab. A deploy can also be started by hand there
+(**Run workflow**).
+
+The workflow needs three repo secrets (**Settings → Secrets and variables → Actions**):
+
+| Secret | Where to get it |
+|---|---|
+| `VERCEL_TOKEN` | Vercel → Account Settings → Tokens |
+| `VERCEL_ORG_ID` | Vercel → Team/Account Settings → General → ID |
+| `VERCEL_PROJECT_ID` | Vercel → Project `fishfarmdemo` → Settings → General → Project ID |
+
+Vercel's own Git integration also deploys on push while it is connected. To deploy only
+through Actions, disconnect it under Project → Settings → Git.
 
 **Firebase (already done once, documented for reference):**
 1. Web app registered; its `apiKey` / `appId` are in `js/firebase-config.js`.
