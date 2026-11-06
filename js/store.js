@@ -14,10 +14,10 @@ const SHARED_USER = 'admin', SHARED_PASSWORD = '1234', SHARED_AUTH_PASSWORD = 'f
 const isSharedAccount = username => SHARED_ROLES.some(r => username === SHARED_USER + '.' + r);
 const emailOf = username => String(username).trim().toLowerCase().replace(/[^a-z0-9._-]/g, '') + EMAIL_DOMAIN;
 
-const DEFAULT_SETTINGS = { businessName: 'XXX Fish Farm', location: '', bossPhone: '', callmebotKey: '', telegramToken: '', telegramChatId: '', lowStock: 200, layoutTop: 5, layoutStem: 4, planNotes: '',
+const DEFAULT_SETTINGS = { businessName: 'XXX Fish Farm', location: '', bossPhone: '', callmebotKey: '', telegramToken: '', telegramChatId: '', lowStock: 200, planNotes: '',
   regNo: '', address: '', email: '', officePhone: '',
   phMin: 6.5, phMax: 8.5, tempMin: 24, tempMax: 32, doMin: 5, nh3Max: 0.5, fcrGood: 1.5, fcrFair: 2 };
-const NUMERIC_SETTINGS = ['lowStock', 'layoutTop', 'layoutStem', 'phMin', 'phMax', 'tempMin', 'tempMax', 'doMin', 'nh3Max', 'fcrGood', 'fcrFair'];
+const NUMERIC_SETTINGS = ['lowStock', 'phMin', 'phMax', 'tempMin', 'tempMax', 'doMin', 'nh3Max', 'fcrGood', 'fcrFair'];
 const emptyData = () => ({ ...Object.fromEntries(COLLECTIONS.map(k => [k, []])), settings: { ...DEFAULT_SETTINGS } });
 
 // The farm's 21 cages as recorded on 27/10/2026: [cage no, fish count, average size in grams]
@@ -25,19 +25,19 @@ const PLAN_RECORD_DATE = '2026-10-27';
 const PLAN_CAGE_DATA = [[1, 1300, 25], [2, 1300, 25], [3, 1300, 25], [4, 0, 0], [5, 0, 0], [6, 0, 0], [7, 0, 0], [8, 0, 0], [9, 0, 0], [10, 1300, 210], [11, 1300, 200],
   [12, 1300, 190], [13, 1300, 150], [14, 313, 250], [15, 1139, 180], [16, 1300, 200], [17, 1300, 180], [18, 1300, 25], [19, 1300, 25], [20, 600, 25], [21, 1300, 25]];
 const planCages = () => PLAN_CAGE_DATA.map(([no, count, g]) => ({
-  id: 'cage' + String(no).padStart(2, '0'), cageNo: no, slot: '', name: 'Sangkar ' + no, species: '-', count, capacity: 1500, price: 0, unit: 'fish', avgWeight: g / 1000,
+  id: 'cage' + String(no).padStart(2, '0'), cageNo: no, name: 'Sangkar ' + no, species: '-', count, capacity: 1500, price: 0, unit: 'fish', avgWeight: g / 1000,
   status: count ? 'active' : 'empty', forSale: false, stockedDate: '', harvestDate: '', notes: '', ageMin: '', ageMax: '', ageUnit: 'month', stockCount: 0, stockWeight: 0, recordDate: PLAN_RECORD_DATE,
 }));
 
 // Sample operational data (no user accounts — those live in Firebase Auth)
 function seedData(bossId) {
   const pools = [
-    { id: 'p1', slot: 'T0', ageMin: 3, ageMax: 4, ageUnit: 'week', stockCount: 2000, stockWeight: 0.01, name: 'Kolam A1', species: 'Tilapia Merah', emoji: '🐟', count: 1850, capacity: 2500, price: 14, unit: 'kg', avgWeight: 0.5, status: 'active', forSale: true, stockedDate: daysAgo(120).slice(0, 10), harvestDate: daysAgo(-20).slice(0, 10), notes: '' },
-    { id: 'p2', slot: 'T1', ageMin: 2, ageMax: 3, ageUnit: 'week', stockCount: 3500, stockWeight: 0.005, name: 'Kolam A2', species: 'Keli', emoji: '🐠', count: 3200, capacity: 3500, price: 9, unit: 'kg', avgWeight: 0.35, status: 'active', forSale: true, stockedDate: daysAgo(90).slice(0, 10), harvestDate: daysAgo(-10).slice(0, 10), notes: '' },
-    { id: 'p3', slot: 'T2', ageMin: 1, ageMax: 2, ageUnit: 'month', stockCount: 700, stockWeight: 0.02, name: 'Kolam B1', species: 'Patin', emoji: '🐡', count: 640, capacity: 1200, price: 16, unit: 'kg', avgWeight: 1.4, status: 'active', forSale: true, stockedDate: daysAgo(200).slice(0, 10), harvestDate: daysAgo(-5).slice(0, 10), notes: '' },
-    { id: 'p4', slot: 'T3', ageMin: 30, ageMax: 45, ageUnit: 'day', stockCount: 3000, stockWeight: 0.002, name: 'Kolam B2', species: 'Udang Galah', emoji: '🦐', count: 2600, capacity: 4000, price: 55, unit: 'kg', avgWeight: 0.06, status: 'active', forSale: true, stockedDate: daysAgo(100).slice(0, 10), harvestDate: daysAgo(-30).slice(0, 10), notes: '' },
-    { id: 'p5', slot: 'T4', ageMin: 1, ageMax: 2, ageUnit: 'month', stockCount: 100, stockWeight: 0.01, name: 'Kolam C1', species: 'Lampam Jawa', emoji: '🐟', count: 90, capacity: 1500, price: 12, unit: 'kg', avgWeight: 0.3, status: 'active', forSale: true, stockedDate: daysAgo(150).slice(0, 10), harvestDate: '', notes: '' },
-    { id: 'p6', slot: 'S0', ageMin: '', ageMax: '', ageUnit: 'month', stockCount: 0, stockWeight: 0, name: 'Kolam C2', species: '-', emoji: '🐟', count: 0, capacity: 2000, price: 0, unit: 'fish', avgWeight: 0, status: 'maintenance', forSale: false, stockedDate: '', harvestDate: '', notes: 'Cuci & keringkan kolam' },
+    { id: 'p1', ageMin: 3, ageMax: 4, ageUnit: 'week', stockCount: 2000, stockWeight: 0.01, name: 'Kolam A1', species: 'Tilapia Merah', emoji: '🐟', count: 1850, capacity: 2500, price: 14, unit: 'kg', avgWeight: 0.5, status: 'active', forSale: true, stockedDate: daysAgo(120).slice(0, 10), harvestDate: daysAgo(-20).slice(0, 10), notes: '' },
+    { id: 'p2', ageMin: 2, ageMax: 3, ageUnit: 'week', stockCount: 3500, stockWeight: 0.005, name: 'Kolam A2', species: 'Keli', emoji: '🐠', count: 3200, capacity: 3500, price: 9, unit: 'kg', avgWeight: 0.35, status: 'active', forSale: true, stockedDate: daysAgo(90).slice(0, 10), harvestDate: daysAgo(-10).slice(0, 10), notes: '' },
+    { id: 'p3', ageMin: 1, ageMax: 2, ageUnit: 'month', stockCount: 700, stockWeight: 0.02, name: 'Kolam B1', species: 'Patin', emoji: '🐡', count: 640, capacity: 1200, price: 16, unit: 'kg', avgWeight: 1.4, status: 'active', forSale: true, stockedDate: daysAgo(200).slice(0, 10), harvestDate: daysAgo(-5).slice(0, 10), notes: '' },
+    { id: 'p4', ageMin: 30, ageMax: 45, ageUnit: 'day', stockCount: 3000, stockWeight: 0.002, name: 'Kolam B2', species: 'Udang Galah', emoji: '🦐', count: 2600, capacity: 4000, price: 55, unit: 'kg', avgWeight: 0.06, status: 'active', forSale: true, stockedDate: daysAgo(100).slice(0, 10), harvestDate: daysAgo(-30).slice(0, 10), notes: '' },
+    { id: 'p5', ageMin: 1, ageMax: 2, ageUnit: 'month', stockCount: 100, stockWeight: 0.01, name: 'Kolam C1', species: 'Lampam Jawa', emoji: '🐟', count: 90, capacity: 1500, price: 12, unit: 'kg', avgWeight: 0.3, status: 'active', forSale: true, stockedDate: daysAgo(150).slice(0, 10), harvestDate: '', notes: '' },
+    { id: 'p6', ageMin: '', ageMax: '', ageUnit: 'month', stockCount: 0, stockWeight: 0, name: 'Kolam C2', species: '-', emoji: '🐟', count: 0, capacity: 2000, price: 0, unit: 'fish', avgWeight: 0, status: 'maintenance', forSale: false, stockedDate: '', harvestDate: '', notes: 'Cuci & keringkan kolam' },
   ];
   const water = [], feeding = [];
   pools.filter(p => p.status === 'active').forEach(p => {

@@ -22,7 +22,6 @@ const saveCart = () => localStorage.setItem('fishfarm_cart', JSON.stringify(stat
 
 const ICONS = {
   dashboard: '<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
-  layout: '<rect x="3" y="3" width="18" height="6" rx="1.5"/><rect x="9" y="9" width="6" height="12" rx="1.5"/>',
   pools: '<path d="M2 12c3-5 10-6 15 0-5 6-12 5-15 0z"/><path d="M17 12l4-3.5v7z"/><circle cx="7" cy="11" r=".6"/>',
   stock: '<path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/>',
   water: '<path d="M12 2.7l5.7 5.6a8 8 0 1 1-11.4 0z"/>',
@@ -171,13 +170,13 @@ function closeModal() { $('#modal-root').innerHTML = ''; modalSubmit = null; }
 // ---------- navigation ----------
 function navFor(r) {
   if (r === 'boss') return [
-    { label: t('operations'), items: ['dashboard', 'layout', 'pools', 'stock', 'water', 'feeding', 'tasks'] },
+    { label: t('operations'), items: ['dashboard', 'pools', 'stock', 'water', 'feeding', 'tasks'] },
     { label: t('sales'), items: ['orders', 'reports'] },
     { label: t('manage'), items: ['users', 'settings'] },
     { label: t('account'), items: ['profile'] },
   ];
   if (r === 'worker') return [
-    { label: t('operations'), items: ['dashboard', 'layout', 'pools', 'stock', 'water', 'feeding', 'tasks'] },
+    { label: t('operations'), items: ['dashboard', 'pools', 'stock', 'water', 'feeding', 'tasks'] },
     { label: t('sales'), items: ['orders'] },
     { label: t('account'), items: ['profile'] },
   ];
@@ -467,56 +466,12 @@ VIEWS.dashboard = () => {
   `;
 };
 
-// ----- T-shaped cage layout -----
-function tSlots() {
-  const s = D().settings;
-  const n = Math.min(15, Math.max(1, +s.layoutTop || 5)), m = Math.min(15, Math.max(0, +s.layoutStem || 0));
-  const mid = Math.floor(n / 2);
-  return { n, list: [...Array(n)].map((_, i) => ({ id: 'T' + i, row: 1, col: i + 1 })).concat([...Array(m)].map((_, j) => ({ id: 'S' + j, row: j + 2, col: mid + 1 }))) };
-}
-
 function cageState(p) {
   if (p.status !== 'active') return 'off';
   if (wqIssues(lastWater(p.id)).length) return 'bad';
   if (p.capacity && p.count / p.capacity >= 0.9) return 'warn';
   return '';
 }
-
-VIEWS.layout = () => {
-  const { n, list } = tSlots();
-  const bySlot = Object.fromEntries(D().pools.filter(p => p.slot).map(p => [p.slot, p]));
-  const unplaced = D().pools.filter(p => !p.slot || !list.some(x => x.id === p.slot));
-  const arranging = state.arrange && isBoss();
-  const cell = sl => {
-    const p = bySlot[sl.id], pos = `grid-row:${sl.row};grid-column:${sl.col}`;
-    if (!p) return `<button class="cage empty" style="${pos}" data-act="cageClick" data-slot="${sl.id}" title="${t('emptySlot')}">${isBoss() ? '+' : ''}</button>`;
-    const pct = p.capacity ? Math.min(100, Math.round(p.count / p.capacity * 100)) : 0;
-    return `<button class="cage ${cageState(p)} ${state.moveFrom === p.id ? 'sel' : ''}" style="${pos}" data-act="cageClick" data-slot="${sl.id}" title="${esc(p.name)} — ${esc(p.species)}">
-      <b>${esc(p.name)}</b>
-      <span class="cage-sp">${esc(p.species)}</span>
-      <span class="cage-count">${fmtN(p.count)}</span>
-      <span class="cage-bar"><span style="width:${pct}%"></span></span>
-    </button>`;
-  };
-  return `
-    <div class="toolbar">
-      ${isBoss() ? `
-        <label class="flex" style="gap:6px;font-size:13.5px;font-weight:600">${t('topRow')} <input class="input" type="number" min="1" max="15" style="width:76px" data-setting="layoutTop" value="${n}"></label>
-        <label class="flex" style="gap:6px;font-size:13.5px;font-weight:600">${t('stemRow')} <input class="input" type="number" min="0" max="15" style="width:76px" data-setting="layoutStem" value="${list.length - n}"></label>` : ''}
-      <div class="spacer"></div>
-      ${isBoss() ? `<button class="btn ${arranging ? 'gold' : 'secondary'}" data-act="toggleArrange">${icon('layout', 16)} ${arranging ? t('doneArrange') : t('arrange')}</button>` : ''}
-    </div>
-    ${arranging ? `<div class="alert info">${icon('layout', 18)} ${t('arrangeHint')}</div>` : ''}
-    <div class="tmap-wrap"><div class="tmap" style="--n:${n}">${list.map(cell).join('')}</div></div>
-    <div class="flex mt" style="font-size:13px">
-      <span class="legend"><i class="lg-ok"></i>${t('legendOk')}</span>
-      <span class="legend"><i class="lg-warn"></i>${t('legendWarn')}</span>
-      <span class="legend"><i class="lg-bad"></i>${t('legendBad')}</span>
-      <span class="legend"><i class="lg-off"></i>${t('legendOff')}</span>
-    </div>
-    ${unplaced.length ? `<div class="card mt"><div class="card-head"><h3>${t('unplaced')} (${unplaced.length})</h3>${isBoss() ? `<button class="btn sm" data-act="autoPlace">${icon('layout', 14)} ${t('autoPlace')}</button>` : ''}</div>
-      <div class="flex">${unplaced.map(p => `<button class="btn sm ${state.moveFrom === p.id ? 'gold' : 'secondary'}" data-act="cagePick" data-id="${p.id}">${esc(p.name)}</button>`).join('')}</div></div>` : ''}`;
-};
 
 VIEWS.pools = () => {
   const q = state.q.toLowerCase();
@@ -971,8 +926,8 @@ VIEWS.settings = () => {
             <div class="grid-2">${num('fcrGood', t('fcrGoodMax'))}${num('fcrFair', t('fcrFairMax'))}</div>
           </div>
           <div class="card mt">
-            <div class="card-head"><h3>${t('layoutSettings')} · ${t('stockAlerts')}</h3></div>
-            <div class="grid-3">${num('layoutTop', t('topRow'), '1')}${num('layoutStem', t('stemRow'), '1')}${num('lowStock', t('lowStockLevel'), '1')}</div>
+            <div class="card-head"><h3>${t('stockAlerts')}</h3></div>
+            ${num('lowStock', t('lowStockLevel'), '1')}
           </div>
         </div>
       </div>
@@ -1026,7 +981,6 @@ VIEWS.profile = () => {
 function poolForm(p = {}) {
   const sel = (v, x) => v === x ? 'selected' : '';
   return `
-    <input type="hidden" name="slot" value="${esc(p.slot || '')}">
     <input type="hidden" name="cageNo" value="${esc(p.cageNo || '')}">
     <div class="grid-2">
       <div class="field"><label>${t('poolName')}</label><input class="input" name="name" value="${esc(p.name)}" required></div>
@@ -1059,7 +1013,7 @@ function savePool(f, existing) {
   const p = existing || { id: uid('p') };
   Object.assign(p, {
     name: f.name.trim(), species: f.species.trim(), count: +f.count, capacity: +f.capacity, price: +f.price, unit: f.unit,
-    slot: f.slot || '', cageNo: +f.cageNo || '', recordDate: todayStr(), avgWeight: +f.avgWeight, stockCount: +f.stockCount || 0, stockWeight: +f.stockWeight || 0,
+    cageNo: +f.cageNo || '', recordDate: todayStr(), avgWeight: +f.avgWeight, stockCount: +f.stockCount || 0, stockWeight: +f.stockWeight || 0,
     ageMin: f.ageMin === '' ? '' : +f.ageMin, ageMax: f.ageMax === '' ? '' : +f.ageMax, ageUnit: f.ageUnit, status: f.status, forSale: f.forSale === '1', stockedDate: f.stockedDate, harvestDate: f.harvestDate, notes: f.notes,
   });
   if (!existing) D().pools.push(p);
@@ -1257,7 +1211,7 @@ const ACTIONS = {
   closeModal: () => closeModal(),
   closeModalBack: (el, e) => { if (e.target === el) closeModal(); },
 
-  addPool: el => openModal({ title: t('addPool'), wide: true, body: poolForm({ slot: el.dataset.slot || '' }), onSubmit: f => { savePool(f); render(); } }),
+  addPool: () => openModal({ title: t('addPool'), wide: true, body: poolForm(), onSubmit: f => { savePool(f); render(); } }),
   loadPlan: el => {
     el.disabled = true;
     const have = new Set(D().pools.map(p => p.cageNo));
@@ -1269,30 +1223,6 @@ const ACTIONS = {
     const no = +el.dataset.no, p = D().pools.find(x => x.cageNo === no);
     if (p) return openModal({ title: esc(p.name), body: `<div class="pools" style="grid-template-columns:1fr">${poolCard(p)}</div>`, hideFoot: true });
     if (isBoss()) openModal({ title: t('addPool'), wide: true, body: poolForm({ cageNo: no, name: 'Sangkar ' + no }), onSubmit: f => { savePool(f); render(); } });
-  },
-  toggleArrange: () => { state.arrange = !state.arrange; state.moveFrom = null; render(); },
-  cagePick: el => { if (!isBoss()) return; state.arrange = true; state.moveFrom = state.moveFrom === el.dataset.id ? null : el.dataset.id; render(); },
-  cageClick: el => {
-    const slot = el.dataset.slot, here = D().pools.find(p => p.slot === slot);
-    if (state.arrange && isBoss()) {
-      if (!state.moveFrom) { if (here) { state.moveFrom = here.id; render(); } return; }
-      const from = Store.pool(state.moveFrom);
-      if (here && here.id !== from.id) here.slot = from.slot || '';
-      from.slot = slot;
-      state.moveFrom = null;
-      Store.log(`${me().name} menyusun semula ${from.name}`);
-      Store.save(); render();
-      return;
-    }
-    if (here) return openModal({ title: esc(here.name), body: `<div class="pools" style="grid-template-columns:1fr">${poolCard(here)}</div>`, hideFoot: true });
-    if (isBoss()) ACTIONS.addPool(el);
-  },
-  autoPlace: () => {
-    const { list } = tSlots();
-    const used = new Set(D().pools.map(p => p.slot));
-    const free = list.filter(s => !used.has(s.id)).map(s => s.id);
-    D().pools.filter(p => !p.slot || !list.some(x => x.id === p.slot)).forEach(p => { if (free.length) p.slot = free.shift(); });
-    Store.save(); render();
   },
   editPool: el => { const p = Store.pool(el.dataset.id); openModal({ title: t('editPool'), wide: true, body: poolForm(p), onSubmit: f => { savePool(f, p); render(); } }); },
   delPool: el => {
@@ -1462,8 +1392,6 @@ document.addEventListener('change', e => {
   const k = e.target.dataset.change;
   if (k) { state[k] = e.target.value; render(); }
   if (e.target.id === 'plan-notes' && isBoss()) { D().settings.planNotes = e.target.value; Store.save(); toast(t('saved')); }
-  const sk = e.target.dataset.setting;
-  if (sk) { D().settings[sk] = Math.max(0, Math.min(15, +e.target.value || 0)); Store.save(); render(); }
   if (e.target.id === 'stock-type') $('#to-pool').style.display = e.target.value === 'transfer' ? '' : 'none';
   if (e.target.id === 'co-method') $('#co-address').style.display = e.target.value === 'delivery' ? '' : 'none';
   if (e.target.id === 'brand-color') Store.setMeta('brandColor', e.target.value);

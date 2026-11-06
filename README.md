@@ -17,7 +17,7 @@ operations, and the Boss sees and manages everything.
 ## Features
 
 - 🔐 **Login-gated, 3 roles**: Boss (admin), Pekerja (worker) and Pembeli (buyer), on Firebase Authentication. Database security rules enforce what each role can read and write.
-- 🐟 **Pond / cage management**: fish count, capacity %, species, price, stocking and harvest dates, and a **T-shaped cage layout** (configurable size, rearrange by click, status colours).
+- 🐟 **Pond / cage management**: fish count, capacity %, species, price, stocking and harvest dates, and a **21-cage plan** on the dashboard showing every cage in its physical position.
 - 📈 **Growth & FCR**: stocking age range with an auto-calculated **current age**, weight sampling, biomass, and **FCR (Feed Conversion Ratio)** per cage with good/fair/high targets.
 - 💧 **Water quality**: pH, temperature, DO and ammonia logs, with alerts when a reading is outside the safe ranges set in Settings.
 - 🍚 **Feeding & tasks**: feeding log, a "not fed today" checklist, and tasks the Boss assigns and workers tick off.
@@ -158,7 +158,7 @@ the Pekerja tab, and so on.
 |---|---|
 | **Umum / General** | Business name, SSM no., address, email, office phone, logo, theme colour |
 | **Notifikasi** | Boss WhatsApp no., CallMeBot API key, Telegram bot token + chat id |
-| **Operasi** | Water-quality safe ranges, FCR targets, T-layout size, low-stock level |
+| **Operasi** | Water-quality safe ranges, FCR targets, low-stock level |
 | **Data** | JSON backup / restore, reset sample data |
 
 **WhatsApp (CallMeBot, free):** save +34 644 51 95 23, send
